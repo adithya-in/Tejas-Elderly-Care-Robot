@@ -5,8 +5,9 @@
  * Wiring:
  *   SCK  -> D5 / GPIO14  (both displays)
  *   MOSI -> D7 / GPIO13  (both displays)
- *   Left  CS -> D8 / GPIO15, DC -> D1 / GPIO5
- *   Right CS -> D0 / GPIO16, DC -> D2 / GPIO4
+ *   A0/DC -> D1 / GPIO5  (shared by both displays)
+ *   Left  CS -> D8 / GPIO15
+ *   Right CS -> D0 / GPIO16
  *   RST of both -> 3.3V (software reset is used)
  *   VCC, LED/BL -> 3.3V, GND -> GND
  *
@@ -21,9 +22,8 @@
 #define PIN_SCK   14
 #define PIN_MOSI  13
 #define PIN_CS_L  15
-#define PIN_DC_L   5
 #define PIN_CS_R  16
-#define PIN_DC_R   4
+#define PIN_DC     5
 
 const int W = 128;
 const int H = 160;
@@ -31,7 +31,7 @@ const int EYE_W = 90;
 const int EYE_H = 110;
 const int EYE_R = 26;
 
-Adafruit_ST7735 tftL(PIN_CS_L, PIN_DC_L, -1);
+Adafruit_ST7735 tftL(PIN_CS_L, PIN_DC, -1);
 
 class MirrorST7735 : public Adafruit_ST7735 {
 public:
@@ -46,7 +46,7 @@ public:
   }
 };
 
-MirrorST7735 tftR(PIN_CS_R, PIN_DC_R, -1);
+MirrorST7735 tftR(PIN_CS_R, PIN_DC, -1);
 
 RoboEyesTFT<Adafruit_ST7735> eyeL(tftL);
 RoboEyesTFT<MirrorST7735> eyeR(tftR);
