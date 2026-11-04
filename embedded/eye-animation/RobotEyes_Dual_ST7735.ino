@@ -32,24 +32,34 @@ const int EYE_H = 110;
 const int EYE_R = 26;
 
 Adafruit_ST7735 tftL(PIN_CS_L, PIN_DC, -1);
+Adafruit_ST7735 tftR(PIN_CS_R, PIN_DC, -1);
 
-class MirrorST7735 : public Adafruit_ST7735 {
+class Canvas8 : public GFXcanvas8 {
 public:
-  MirrorST7735(int16_t cs, int16_t dc, int16_t rst) : Adafruit_ST7735(cs, dc, rst) {}
+  bool mirror = false;
+
+  Canvas8(int16_t w, int16_t h) : GFXcanvas8(w, h) {}
 
   void fillRoundRect(int16_t x, int16_t y, int16_t w, int16_t h, int16_t r, uint16_t color) {
-    Adafruit_ST7735::fillRoundRect(width() - x - w, y, w, h, r, color);
+    if (mirror) {
+      GFXcanvas8::fillRoundRect(width() - x - w, y, w, h, r, color);
+    } else {
+      GFXcanvas8::fillRoundRect(x, y, w, h, r, color);
+    }
   }
 
   void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
-    Adafruit_ST7735::fillTriangle(width() - 1 - x0, y0, width() - 1 - x1, y1, width() - 1 - x2, y2, color);
+    if (mirror) {
+      GFXcanvas8::fillTriangle(width() - 1 - x0, y0, width() - 1 - x1, y1, width() - 1 - x2, y2, color);
+    } else {
+      GFXcanvas8::fillTriangle(x0, y0, x1, y1, x2, y2, color);
+    }
   }
 };
 
-MirrorST7735 tftR(PIN_CS_R, PIN_DC, -1);
-
-RoboEyesTFT<Adafruit_ST7735> eyeL(tftL);
-RoboEyesTFT<MirrorST7735> eyeR(tftR);
+Canvas8 canvas(SCREEN_W, SCREEN_H);
+RoboEyesTFT<Canvas8> eyeL(canvas);
+RoboEyesTFT<Canvas8> eyeR(canvas);
 
 int eyeX = (SCREEN_W - EYE_W) / 2;
 int eyeY = (SCREEN_H - EYE_H) / 2;
@@ -62,6 +72,21 @@ unsigned long nextSpecialAt = 0;
 unsigned long sweatUntil = 0;
 uint8_t moodIndex = 0;
 const uint8_t moods[4] = {DEFAULT, HAPPY, ANGRY, TIRED};
+
+void pushCanvas(Adafruit_ST7735 &tft, Canvas8 &cv, uint16_t fg, uint16_t bg) {
+  uint8_t *buf = cv.getBuffer();
+  uint16_t line[SCREEN_W];
+  tft.startWrite();
+  tft.setAddrWindow(0, 0, SCREEN_W, SCREEN_H);
+  for (int y = 0; y < SCREEN_H; y++) {
+    int off = y * SCREEN_W;
+    for (int x = 0; x < SCREEN_W; x++) {
+      line[x] = buf[off + x] ? fg : bg;
+    }
+    tft.writePixels(line, SCREEN_W);
+  }
+  tft.endWrite();
+}
 
 void applyEyePositions() {
   eyeL.eyeLxNext = eyeX;
@@ -86,13 +111,20 @@ void setup() {
 
   tftL.initR(INITR_BLACKTAB);
   tftL.setRotation(0);
-  tftL.setSPISpeed(40000000);
+  tftL.setSPISpeed(27000000);
   tftL.fillScreen(ST77XX_BLACK);
 
   tftR.initR(INITR_BLACKTAB);
   tftR.setRotation(0);
-  tftR.setSPISpeed(40000000);
+  tftR.setSPISpeed(27000000);
   tftR.fillScreen(ST77XX_BLACK);
+
+  if (!canvas.getBuffer()) {
+    Serial.println("Canvas allocation failed");
+    while (1) {
+      delay(1000);
+    }
+  }
 
   eyeL.begin(SCREEN_W, SCREEN_H, 25);
   eyeR.begin(SCREEN_W, SCREEN_H, 25);
@@ -177,8 +209,14 @@ void loop() {
   updateAnimations();
 
   if (millis() - frameTimer >= 40) {
+    canvas.mirror = false;
     eyeL.drawEyes();
+    pushCanvas(tftL, canvas, ST77XX_BLUE, ST77XX_BLACK);
+
+    canvas.mirror = true;
     eyeR.drawEyes();
+    pushCanvas(tftR, canvas, ST77XX_BLUE, ST77XX_BLACK);
+
     frameTimer = millis();
   }
 }
