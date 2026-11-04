@@ -42,6 +42,17 @@
 #define OFF 0
 #endif
 
+#ifndef N
+#define N 1
+#define NE 2
+#define E 3
+#define SE 4
+#define S 5
+#define SW 6
+#define W 7
+#define NW 8
+#endif
+
 template <typename AdafruitDisplay>
 class RoboEyesTFT {
 public:
@@ -76,8 +87,10 @@ public:
   int eyeRxDefault = 0, eyeRyDefault = 0;
   int eyeRx = 0, eyeRy = 0, eyeRxNext = 0, eyeRyNext = 0;
 
+  byte eyelidsHeightMax = eyeLheightDefault / 2;
   byte eyelidsTiredHeight = 0, eyelidsTiredHeightNext = 0;
   byte eyelidsAngryHeight = 0, eyelidsAngryHeightNext = 0;
+  byte eyelidsHappyBottomOffsetMax = (eyeLheightDefault / 2) + 3;
   byte eyelidsHappyBottomOffset = 0, eyelidsHappyBottomOffsetNext = 0;
 
   int spaceBetweenDefault = 10, spaceBetweenCurrent = 10, spaceBetweenNext = 10;
@@ -104,6 +117,30 @@ public:
   unsigned long laughAnimationTimer = 0;
   int laughAnimationDuration = 500;
   bool laughToggle = 1;
+
+  bool sweat = 0;
+  byte sweatBorderradius = 3;
+
+  int sweat1XPosInitial = 2;
+  int sweat1XPos;
+  float sweat1YPos = 2;
+  int sweat1YPosMax;
+  float sweat1Height = 2;
+  float sweat1Width = 1;
+
+  int sweat2XPosInitial = 2;
+  int sweat2XPos;
+  float sweat2YPos = 2;
+  int sweat2YPosMax;
+  float sweat2Height = 2;
+  float sweat2Width = 1;
+
+  int sweat3XPosInitial = 2;
+  int sweat3XPos;
+  float sweat3YPos = 2;
+  int sweat3YPosMax;
+  float sweat3Height = 2;
+  float sweat3Width = 1;
 
   RoboEyesTFT(AdafruitDisplay &disp) : display(&disp) {}
 
@@ -199,6 +236,47 @@ public:
     }
   }
 
+  void setPosition(uint8_t position) {
+    switch (position) {
+      case N:
+        eyeLxNext = getScreenConstraint_X() / 2;
+        eyeLyNext = 0;
+        break;
+      case NE:
+        eyeLxNext = getScreenConstraint_X();
+        eyeLyNext = 0;
+        break;
+      case E:
+        eyeLxNext = getScreenConstraint_X();
+        eyeLyNext = getScreenConstraint_Y() / 2;
+        break;
+      case SE:
+        eyeLxNext = getScreenConstraint_X();
+        eyeLyNext = getScreenConstraint_Y();
+        break;
+      case S:
+        eyeLxNext = getScreenConstraint_X() / 2;
+        eyeLyNext = getScreenConstraint_Y();
+        break;
+      case SW:
+        eyeLxNext = 0;
+        eyeLyNext = getScreenConstraint_Y();
+        break;
+      case W:
+        eyeLxNext = 0;
+        eyeLyNext = getScreenConstraint_Y() / 2;
+        break;
+      case NW:
+        eyeLxNext = 0;
+        eyeLyNext = 0;
+        break;
+      default:
+        eyeLxNext = getScreenConstraint_X() / 2;
+        eyeLyNext = getScreenConstraint_Y() / 2;
+        break;
+    }
+  }
+
   void setAutoblinker(bool active, int interval, int variation) {
     autoblinker = active;
     blinkInterval = interval;
@@ -243,6 +321,10 @@ public:
 
   void setVFlicker(bool flickerBit) {
     vFlicker = flickerBit;
+  }
+
+  void setSweat(bool sweatBit) {
+    sweat = sweatBit;
   }
 
   int getScreenConstraint_X() {
@@ -479,6 +561,65 @@ public:
     display->fillRoundRect(eyeLx - 1, (eyeLy + eyeLheightCurrent) - eyelidsHappyBottomOffset + 1, eyeLwidthCurrent + 2, eyeLheightDefault, eyeLborderRadiusCurrent, bgColor);
     if (!cyclops) {
       display->fillRoundRect(eyeRx - 1, (eyeRy + eyeRheightCurrent) - eyelidsHappyBottomOffset + 1, eyeRwidthCurrent + 2, eyeRheightDefault, eyeRborderRadiusCurrent, bgColor);
+    }
+
+    if (sweat) {
+      if (sweat1YPos <= sweat1YPosMax) {
+        sweat1YPos += 0.5;
+      } else {
+        sweat1XPosInitial = random(30);
+        sweat1YPos = 2;
+        sweat1YPosMax = (random(10) + 10);
+        sweat1Width = 1;
+        sweat1Height = 2;
+      }
+      if (sweat1YPos <= sweat1YPosMax / 2) {
+        sweat1Width += 0.5;
+        sweat1Height += 0.5;
+      } else {
+        sweat1Width -= 0.1;
+        sweat1Height -= 0.5;
+      }
+      sweat1XPos = sweat1XPosInitial - (sweat1Width / 2);
+      display->fillRoundRect(sweat1XPos, sweat1YPos, sweat1Width, sweat1Height, sweatBorderradius, mainColor);
+
+      if (sweat2YPos <= sweat2YPosMax) {
+        sweat2YPos += 0.5;
+      } else {
+        sweat2XPosInitial = random(screenWidth - 60) + 30;
+        sweat2YPos = 2;
+        sweat2YPosMax = (random(10) + 10);
+        sweat2Width = 1;
+        sweat2Height = 2;
+      }
+      if (sweat2YPos <= sweat2YPosMax / 2) {
+        sweat2Width += 0.5;
+        sweat2Height += 0.5;
+      } else {
+        sweat2Width -= 0.1;
+        sweat2Height -= 0.5;
+      }
+      sweat2XPos = sweat2XPosInitial - (sweat2Width / 2);
+      display->fillRoundRect(sweat2XPos, sweat2YPos, sweat2Width, sweat2Height, sweatBorderradius, mainColor);
+
+      if (sweat3YPos <= sweat3YPosMax) {
+        sweat3YPos += 0.5;
+      } else {
+        sweat3XPosInitial = (screenWidth - 30) + (random(30));
+        sweat3YPos = 2;
+        sweat3YPosMax = (random(10) + 10);
+        sweat3Width = 1;
+        sweat3Height = 2;
+      }
+      if (sweat3YPos <= sweat3YPosMax / 2) {
+        sweat3Width += 0.5;
+        sweat3Height += 0.5;
+      } else {
+        sweat3Width -= 0.1;
+        sweat3Height -= 0.5;
+      }
+      sweat3XPos = sweat3XPosInitial - (sweat3Width / 2);
+      display->fillRoundRect(sweat3XPos, sweat3YPos, sweat3Width, sweat3Height, sweatBorderradius, mainColor);
     }
   }
 };

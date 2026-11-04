@@ -25,8 +25,8 @@
 #define PIN_CS_R  16
 #define PIN_DC     5
 
-const int W = 128;
-const int H = 160;
+const int SCREEN_W = 128;
+const int SCREEN_H = 160;
 const int EYE_W = 90;
 const int EYE_H = 110;
 const int EYE_R = 26;
@@ -51,27 +51,28 @@ MirrorST7735 tftR(PIN_CS_R, PIN_DC, -1);
 RoboEyesTFT<Adafruit_ST7735> eyeL(tftL);
 RoboEyesTFT<MirrorST7735> eyeR(tftR);
 
-int eyeX = (W - EYE_W) / 2;
-int eyeY = (H - EYE_H) / 2;
+int eyeX = (SCREEN_W - EYE_W) / 2;
+int eyeY = (SCREEN_H - EYE_H) / 2;
 
 unsigned long frameTimer = 0;
 unsigned long nextBlinkAt = 0;
 unsigned long nextIdleAt = 0;
 unsigned long nextMoodAt = 0;
 unsigned long nextSpecialAt = 0;
+unsigned long sweatUntil = 0;
 uint8_t moodIndex = 0;
 const uint8_t moods[4] = {DEFAULT, HAPPY, ANGRY, TIRED};
 
 void applyEyePositions() {
   eyeL.eyeLxNext = eyeX;
   eyeL.eyeLyNext = eyeY;
-  eyeR.eyeLxNext = (W - EYE_W) - eyeX;
+  eyeR.eyeLxNext = (SCREEN_W - EYE_W) - eyeX;
   eyeR.eyeLyNext = eyeY;
 }
 
 void lookAt(int x, int y) {
-  eyeX = constrain(x, 0, W - EYE_W);
-  eyeY = constrain(y, 0, H - EYE_H);
+  eyeX = constrain(x, 0, SCREEN_W - EYE_W);
+  eyeY = constrain(y, 0, SCREEN_H - EYE_H);
   applyEyePositions();
 }
 
@@ -93,11 +94,11 @@ void setup() {
   tftR.setSPISpeed(40000000);
   tftR.fillScreen(ST77XX_BLACK);
 
-  eyeL.begin(W, H, 25);
-  eyeR.begin(W, H, 25);
+  eyeL.begin(SCREEN_W, SCREEN_H, 25);
+  eyeR.begin(SCREEN_W, SCREEN_H, 25);
 
-  eyeL.setDisplayColors(ST77XX_BLACK, ST77XX_WHITE);
-  eyeR.setDisplayColors(ST77XX_BLACK, ST77XX_WHITE);
+  eyeL.setDisplayColors(ST77XX_BLACK, ST77XX_BLUE);
+  eyeR.setDisplayColors(ST77XX_BLACK, ST77XX_BLUE);
 
   eyeL.setWidth(EYE_W, EYE_W);
   eyeR.setWidth(EYE_W, EYE_W);
@@ -137,8 +138,8 @@ void updateAnimations() {
   }
 
   if (now >= nextIdleAt) {
-    eyeX = random(0, W - EYE_W + 1);
-    eyeY = random(0, H - EYE_H + 1);
+    eyeX = random(0, SCREEN_W - EYE_W + 1);
+    eyeY = random(0, SCREEN_H - EYE_H + 1);
     applyEyePositions();
     nextIdleAt = now + random(1500, 5000);
   }
@@ -150,14 +151,25 @@ void updateAnimations() {
   }
 
   if (now >= nextSpecialAt) {
-    if (random(2) == 0) {
+    int special = random(3);
+    if (special == 0) {
       eyeL.anim_laugh();
       eyeR.anim_laugh();
-    } else {
+    } else if (special == 1) {
       eyeL.anim_confused();
       eyeR.anim_confused();
+    } else {
+      eyeL.setSweat(true);
+      eyeR.setSweat(true);
+      sweatUntil = now + 3000;
     }
     nextSpecialAt = now + 9000;
+  }
+
+  if (sweatUntil && now >= sweatUntil) {
+    eyeL.setSweat(false);
+    eyeR.setSweat(false);
+    sweatUntil = 0;
   }
 }
 
