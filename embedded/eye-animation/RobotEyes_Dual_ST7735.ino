@@ -1,6 +1,6 @@
 /*
  * Tejas Elderly Care Robot - Dual Eye Animation
- * ESP8266 + two 1.8" ST7735 TFT displays (128x160)
+ * ESP8266 + two 1.8" ST7735 TFT displays (160x128 landscape)
  *
  * Wiring:
  *   SCK  -> D5 / GPIO14  (both displays)
@@ -25,11 +25,11 @@
 #define PIN_CS_R  16
 #define PIN_DC     5
 
-const int SCREEN_W = 128;
-const int SCREEN_H = 160;
+const int SCREEN_W = 160;
+const int SCREEN_H = 128;
 const int EYE_W = 90;
-const int EYE_H = 110;
-const int EYE_R = 26;
+const int EYE_H = 90;
+const int EYE_R = 45;
 
 Adafruit_ST7735 tftL(PIN_CS_L, PIN_DC, -1);
 Adafruit_ST7735 tftR(PIN_CS_R, PIN_DC, -1);
@@ -63,15 +63,10 @@ RoboEyesTFT<Canvas8> eyeR(canvas);
 
 int eyeX = (SCREEN_W - EYE_W) / 2;
 int eyeY = (SCREEN_H - EYE_H) / 2;
+int eyeDir = 1;
 
 unsigned long frameTimer = 0;
 unsigned long nextBlinkAt = 0;
-unsigned long nextIdleAt = 0;
-unsigned long nextMoodAt = 0;
-unsigned long nextSpecialAt = 0;
-unsigned long sweatUntil = 0;
-uint8_t moodIndex = 0;
-const uint8_t moods[4] = {DEFAULT, HAPPY, ANGRY, TIRED};
 
 void pushCanvas(Adafruit_ST7735 &tft, Canvas8 &cv, uint16_t fg, uint16_t bg) {
   uint8_t *buf = cv.getBuffer();
@@ -95,27 +90,16 @@ void applyEyePositions() {
   eyeR.eyeLyNext = eyeY;
 }
 
-void lookAt(int x, int y) {
-  eyeX = constrain(x, 0, SCREEN_W - EYE_W);
-  eyeY = constrain(y, 0, SCREEN_H - EYE_H);
-  applyEyePositions();
-}
-
-void setMoodAll(uint8_t mood) {
-  eyeL.setMood(mood);
-  eyeR.setMood(mood);
-}
-
 void setup() {
   Serial.begin(115200);
 
   tftL.initR(INITR_BLACKTAB);
-  tftL.setRotation(0);
+  tftL.setRotation(1);
   tftL.setSPISpeed(27000000);
   tftL.fillScreen(ST77XX_BLACK);
 
   tftR.initR(INITR_BLACKTAB);
-  tftR.setRotation(0);
+  tftR.setRotation(1);
   tftR.setSPISpeed(27000000);
   tftR.fillScreen(ST77XX_BLACK);
 
@@ -155,60 +139,29 @@ void setup() {
   applyEyePositions();
 
   nextBlinkAt = millis() + 3000;
-  nextIdleAt = millis() + 1500;
-  nextMoodAt = millis() + 6000;
-  nextSpecialAt = millis() + 9000;
-}
-
-void updateAnimations() {
-  unsigned long now = millis();
-
-  if (now >= nextBlinkAt) {
-    eyeL.blink();
-    eyeR.blink();
-    nextBlinkAt = now + random(2000, 6000);
-  }
-
-  if (now >= nextIdleAt) {
-    eyeX = random(0, SCREEN_W - EYE_W + 1);
-    eyeY = random(0, SCREEN_H - EYE_H + 1);
-    applyEyePositions();
-    nextIdleAt = now + random(1500, 5000);
-  }
-
-  if (now >= nextMoodAt) {
-    moodIndex = (moodIndex + 1) % 4;
-    setMoodAll(moods[moodIndex]);
-    nextMoodAt = now + 6000;
-  }
-
-  if (now >= nextSpecialAt) {
-    int special = random(3);
-    if (special == 0) {
-      eyeL.anim_laugh();
-      eyeR.anim_laugh();
-    } else if (special == 1) {
-      eyeL.anim_confused();
-      eyeR.anim_confused();
-    } else {
-      eyeL.setSweat(true);
-      eyeR.setSweat(true);
-      sweatUntil = now + 3000;
-    }
-    nextSpecialAt = now + 9000;
-  }
-
-  if (sweatUntil && now >= sweatUntil) {
-    eyeL.setSweat(false);
-    eyeR.setSweat(false);
-    sweatUntil = 0;
-  }
 }
 
 void loop() {
-  updateAnimations();
-
   if (millis() - frameTimer >= 40) {
+    frameTimer = millis();
+
+    eyeX += eyeDir;
+    if (eyeX <= 0) {
+      eyeX = 0;
+      eyeDir = 1;
+    }
+    if (eyeX >= SCREEN_W - EYE_W) {
+      eyeX = SCREEN_W - EYE_W;
+      eyeDir = -1;
+    }
+    applyEyePositions();
+
+    if (millis() >= nextBlinkAt) {
+      eyeL.blink();
+      eyeR.blink();
+      nextBlinkAt = millis() + random(2500, 5000);
+    }
+
     canvas.mirror = false;
     eyeL.drawEyes();
     pushCanvas(tftL, canvas, ST77XX_BLUE, ST77XX_BLACK);
@@ -216,7 +169,5 @@ void loop() {
     canvas.mirror = true;
     eyeR.drawEyes();
     pushCanvas(tftR, canvas, ST77XX_BLUE, ST77XX_BLACK);
-
-    frameTimer = millis();
   }
 }
