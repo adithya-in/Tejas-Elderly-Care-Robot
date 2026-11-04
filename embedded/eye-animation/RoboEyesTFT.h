@@ -1,0 +1,486 @@
+/*
+ * RoboEyesTFT.h
+ * TFT-adapted version of FluxGarage RoboEyes for Adafruit_ST7735 displays.
+ * Original library: https://github.com/FluxGarage/RoboEyes
+ *
+ * Copyright (C) 2024-2025 Dennis Hoelscher, FluxGarage
+ * TFT adaptation: Tejas Elderly Care Robot - eye animation module
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#ifndef ROBOEYES_TFT_H
+#define ROBOEYES_TFT_H
+
+#include <Arduino.h>
+
+#ifndef DEFAULT
+#define DEFAULT 0
+#endif
+#ifndef TIRED
+#define TIRED 1
+#endif
+#ifndef ANGRY
+#define ANGRY 2
+#endif
+#ifndef HAPPY
+#define HAPPY 3
+#endif
+#ifndef ON
+#define ON 1
+#define OFF 0
+#endif
+
+template <typename AdafruitDisplay>
+class RoboEyesTFT {
+public:
+  AdafruitDisplay *display;
+
+  int screenWidth = 128;
+  int screenHeight = 160;
+  int frameInterval = 40;
+  unsigned long fpsTimer = 0;
+
+  uint16_t bgColor = 0x0000;
+  uint16_t mainColor = 0xFFFF;
+  bool mirrorX = false;
+
+  bool tired = 0, angry = 0, happy = 0, curious = 0, cyclops = 0;
+  bool eyeL_open = 0, eyeR_open = 0;
+
+  int eyeLwidthDefault = 36, eyeLheightDefault = 36;
+  int eyeLwidthCurrent = 36, eyeLheightCurrent = 1;
+  int eyeLwidthNext = 36, eyeLheightNext = 36;
+  int eyeLheightOffset = 0;
+  byte eyeLborderRadiusDefault = 8, eyeLborderRadiusCurrent = 8, eyeLborderRadiusNext = 8;
+
+  int eyeRwidthDefault = 36, eyeRheightDefault = 36;
+  int eyeRwidthCurrent = 36, eyeRheightCurrent = 1;
+  int eyeRwidthNext = 36, eyeRheightNext = 36;
+  int eyeRheightOffset = 0;
+  byte eyeRborderRadiusDefault = 8, eyeRborderRadiusCurrent = 8, eyeRborderRadiusNext = 8;
+
+  int eyeLxDefault = 0, eyeLyDefault = 0;
+  int eyeLx = 0, eyeLy = 0, eyeLxNext = 0, eyeLyNext = 0;
+  int eyeRxDefault = 0, eyeRyDefault = 0;
+  int eyeRx = 0, eyeRy = 0, eyeRxNext = 0, eyeRyNext = 0;
+
+  byte eyelidsTiredHeight = 0, eyelidsTiredHeightNext = 0;
+  byte eyelidsAngryHeight = 0, eyelidsAngryHeightNext = 0;
+  byte eyelidsHappyBottomOffset = 0, eyelidsHappyBottomOffsetNext = 0;
+
+  int spaceBetweenDefault = 10, spaceBetweenCurrent = 10, spaceBetweenNext = 10;
+
+  bool hFlicker = 0, hFlickerAlternate = 0;
+  byte hFlickerAmplitude = 2;
+  bool vFlicker = 0, vFlickerAlternate = 0;
+  byte vFlickerAmplitude = 10;
+
+  bool autoblinker = 0;
+  int blinkInterval = 1, blinkIntervalVariation = 4;
+  unsigned long blinktimer = 0;
+
+  bool idle = 0;
+  int idleInterval = 1, idleIntervalVariation = 3;
+  unsigned long idleAnimationTimer = 0;
+
+  bool confused = 0;
+  unsigned long confusedAnimationTimer = 0;
+  int confusedAnimationDuration = 500;
+  bool confusedToggle = 1;
+
+  bool laugh = 0;
+  unsigned long laughAnimationTimer = 0;
+  int laughAnimationDuration = 500;
+  bool laughToggle = 1;
+
+  RoboEyesTFT(AdafruitDisplay &disp) : display(&disp) {}
+
+  void begin(int width, int height, byte frameRate) {
+    screenWidth = width;
+    screenHeight = height;
+    display->fillScreen(bgColor);
+    eyeLheightCurrent = 1;
+    eyeRheightCurrent = 1;
+    setFramerate(frameRate);
+    eyeLxDefault = (screenWidth - (eyeLwidthDefault + spaceBetweenDefault + eyeRwidthDefault)) / 2;
+    eyeLyDefault = (screenHeight - eyeLheightDefault) / 2;
+    eyeLx = eyeLxDefault;
+    eyeLy = eyeLyDefault;
+    eyeLxNext = eyeLx;
+    eyeLyNext = eyeLy;
+    eyeRxDefault = eyeLxDefault + eyeLwidthDefault + spaceBetweenDefault;
+    eyeRyDefault = eyeLyDefault;
+    eyeRx = eyeRxDefault;
+    eyeRy = eyeRyDefault;
+    eyeRxNext = eyeRx;
+    eyeRyNext = eyeRy;
+  }
+
+  void update() {
+    if (millis() - fpsTimer >= frameInterval) {
+      drawEyes();
+      fpsTimer = millis();
+    }
+  }
+
+  void setFramerate(byte fps) {
+    frameInterval = 1000 / fps;
+  }
+
+  void setDisplayColors(uint16_t background, uint16_t main) {
+    bgColor = background;
+    mainColor = main;
+  }
+
+  void setColors(uint16_t background, uint16_t main) {
+    setDisplayColors(background, main);
+  }
+
+  void setWidth(byte leftEye, byte rightEye) {
+    eyeLwidthNext = leftEye;
+    eyeRwidthNext = rightEye;
+    eyeLwidthDefault = leftEye;
+    eyeRwidthDefault = rightEye;
+  }
+
+  void setHeight(byte leftEye, byte rightEye) {
+    eyeLheightNext = leftEye;
+    eyeRheightNext = rightEye;
+    eyeLheightDefault = leftEye;
+    eyeRheightDefault = rightEye;
+  }
+
+  void setBorderradius(byte leftEye, byte rightEye) {
+    eyeLborderRadiusNext = leftEye;
+    eyeRborderRadiusNext = rightEye;
+    eyeLborderRadiusDefault = leftEye;
+    eyeRborderRadiusDefault = rightEye;
+  }
+
+  void setSpacebetween(int space) {
+    spaceBetweenNext = space;
+    spaceBetweenDefault = space;
+  }
+
+  void setMood(uint8_t mood) {
+    switch (mood) {
+      case TIRED:
+        tired = 1;
+        angry = 0;
+        happy = 0;
+        break;
+      case ANGRY:
+        tired = 0;
+        angry = 1;
+        happy = 0;
+        break;
+      case HAPPY:
+        tired = 0;
+        angry = 0;
+        happy = 1;
+        break;
+      default:
+        tired = 0;
+        angry = 0;
+        happy = 0;
+        break;
+    }
+  }
+
+  void setAutoblinker(bool active, int interval, int variation) {
+    autoblinker = active;
+    blinkInterval = interval;
+    blinkIntervalVariation = variation;
+  }
+
+  void setAutoblinker(bool active) {
+    autoblinker = active;
+  }
+
+  void setIdleMode(bool active, int interval, int variation) {
+    idle = active;
+    idleInterval = interval;
+    idleIntervalVariation = variation;
+  }
+
+  void setIdleMode(bool active) {
+    idle = active;
+  }
+
+  void setCuriosity(bool curiousBit) {
+    curious = curiousBit;
+  }
+
+  void setCyclops(bool cyclopsBit) {
+    cyclops = cyclopsBit;
+  }
+
+  void setHFlicker(bool flickerBit, byte amplitude) {
+    hFlicker = flickerBit;
+    hFlickerAmplitude = amplitude;
+  }
+
+  void setHFlicker(bool flickerBit) {
+    hFlicker = flickerBit;
+  }
+
+  void setVFlicker(bool flickerBit, byte amplitude) {
+    vFlicker = flickerBit;
+    vFlickerAmplitude = amplitude;
+  }
+
+  void setVFlicker(bool flickerBit) {
+    vFlicker = flickerBit;
+  }
+
+  int getScreenConstraint_X() {
+    return screenWidth - eyeLwidthCurrent - spaceBetweenCurrent - eyeRwidthCurrent;
+  }
+
+  int getScreenConstraint_Y() {
+    return screenHeight - eyeLheightDefault;
+  }
+
+  void close() {
+    eyeLheightNext = 1;
+    eyeRheightNext = 1;
+    eyeL_open = 0;
+    eyeR_open = 0;
+  }
+
+  void open() {
+    eyeL_open = 1;
+    eyeR_open = 1;
+  }
+
+  void blink() {
+    close();
+    open();
+  }
+
+  void close(bool left, bool right) {
+    if (left) {
+      eyeLheightNext = 1;
+      eyeL_open = 0;
+    }
+    if (right) {
+      eyeRheightNext = 1;
+      eyeR_open = 0;
+    }
+  }
+
+  void open(bool left, bool right) {
+    if (left) {
+      eyeL_open = 1;
+    }
+    if (right) {
+      eyeR_open = 1;
+    }
+  }
+
+  void blink(bool left, bool right) {
+    close(left, right);
+    open(left, right);
+  }
+
+  void anim_confused() {
+    confused = 1;
+  }
+
+  void anim_laugh() {
+    laugh = 1;
+  }
+
+  void centerSingleEye() {
+    eyeLxNext = (screenWidth - eyeLwidthDefault) / 2;
+    eyeLyNext = (screenHeight - eyeLheightDefault) / 2;
+    eyeLx = eyeLxNext;
+    eyeLy = eyeLyNext;
+    eyeRxNext = eyeLxNext;
+    eyeRyNext = eyeLyNext;
+  }
+
+  void drawEyes() {
+    if (curious) {
+      if (eyeLxNext <= 10) {
+        eyeLheightOffset = 8;
+      } else if (eyeLxNext >= (getScreenConstraint_X() - 10) && cyclops) {
+        eyeLheightOffset = 8;
+      } else {
+        eyeLheightOffset = 0;
+      }
+      if (eyeRxNext >= screenWidth - eyeRwidthCurrent - 10) {
+        eyeRheightOffset = 8;
+      } else {
+        eyeRheightOffset = 0;
+      }
+    } else {
+      eyeLheightOffset = 0;
+      eyeRheightOffset = 0;
+    }
+
+    eyeLheightCurrent = (eyeLheightCurrent + eyeLheightNext + eyeLheightOffset) / 2;
+    eyeLy += ((eyeLheightDefault - eyeLheightCurrent) / 2);
+    eyeLy -= eyeLheightOffset / 2;
+
+    eyeRheightCurrent = (eyeRheightCurrent + eyeRheightNext + eyeRheightOffset) / 2;
+    eyeRy += ((eyeRheightDefault - eyeRheightCurrent) / 2);
+    eyeRy -= eyeRheightOffset / 2;
+
+    if (eyeL_open) {
+      if (eyeLheightCurrent <= 1 + eyeLheightOffset) {
+        eyeLheightNext = eyeLheightDefault;
+      }
+    }
+    if (eyeR_open) {
+      if (eyeRheightCurrent <= 1 + eyeRheightOffset) {
+        eyeRheightNext = eyeRheightDefault;
+      }
+    }
+
+    eyeLwidthCurrent = (eyeLwidthCurrent + eyeLwidthNext) / 2;
+    eyeRwidthCurrent = (eyeRwidthCurrent + eyeRwidthNext) / 2;
+    spaceBetweenCurrent = (spaceBetweenCurrent + spaceBetweenNext) / 2;
+
+    eyeLx = (eyeLx + eyeLxNext) / 2;
+    eyeLy = (eyeLy + eyeLyNext) / 2;
+    eyeRxNext = eyeLxNext + eyeLwidthCurrent + spaceBetweenCurrent;
+    eyeRyNext = eyeLyNext;
+    eyeRx = (eyeRx + eyeRxNext) / 2;
+    eyeRy = (eyeRy + eyeRyNext) / 2;
+
+    eyeLborderRadiusCurrent = (eyeLborderRadiusCurrent + eyeLborderRadiusNext) / 2;
+    eyeRborderRadiusCurrent = (eyeRborderRadiusCurrent + eyeRborderRadiusNext) / 2;
+
+    if (autoblinker) {
+      if (millis() >= blinktimer) {
+        blink();
+        blinktimer = millis() + (blinkInterval * 1000) + (random(blinkIntervalVariation) * 1000);
+      }
+    }
+
+    if (laugh) {
+      if (laughToggle) {
+        setVFlicker(1, 5);
+        laughAnimationTimer = millis();
+        laughToggle = 0;
+      } else if (millis() >= laughAnimationTimer + laughAnimationDuration) {
+        setVFlicker(0, 0);
+        laughToggle = 1;
+        laugh = 0;
+      }
+    }
+
+    if (confused) {
+      if (confusedToggle) {
+        setHFlicker(1, 20);
+        confusedAnimationTimer = millis();
+        confusedToggle = 0;
+      } else if (millis() >= confusedAnimationTimer + confusedAnimationDuration) {
+        setHFlicker(0, 0);
+        confusedToggle = 1;
+        confused = 0;
+      }
+    }
+
+    if (idle) {
+      if (millis() >= idleAnimationTimer) {
+        eyeLxNext = random(getScreenConstraint_X());
+        eyeLyNext = random(getScreenConstraint_Y());
+        idleAnimationTimer = millis() + (idleInterval * 1000) + (random(idleIntervalVariation) * 1000);
+      }
+    }
+
+    if (hFlicker) {
+      int amp = mirrorX ? -(int)hFlickerAmplitude : (int)hFlickerAmplitude;
+      if (hFlickerAlternate) {
+        eyeLx += amp;
+        eyeRx += amp;
+      } else {
+        eyeLx -= amp;
+        eyeRx -= amp;
+      }
+      hFlickerAlternate = !hFlickerAlternate;
+    }
+
+    if (vFlicker) {
+      if (vFlickerAlternate) {
+        eyeLy += vFlickerAmplitude;
+        eyeRy += vFlickerAmplitude;
+      } else {
+        eyeLy -= vFlickerAmplitude;
+        eyeRy -= vFlickerAmplitude;
+      }
+      vFlickerAlternate = !vFlickerAlternate;
+    }
+
+    if (cyclops) {
+      eyeRwidthCurrent = 0;
+      eyeRheightCurrent = 0;
+      spaceBetweenCurrent = 0;
+    }
+
+    display->fillScreen(bgColor);
+
+    display->fillRoundRect(eyeLx, eyeLy, eyeLwidthCurrent, eyeLheightCurrent, eyeLborderRadiusCurrent, mainColor);
+    if (!cyclops) {
+      display->fillRoundRect(eyeRx, eyeRy, eyeRwidthCurrent, eyeRheightCurrent, eyeRborderRadiusCurrent, mainColor);
+    }
+
+    if (tired) {
+      eyelidsTiredHeightNext = eyeLheightCurrent / 2;
+      eyelidsAngryHeightNext = 0;
+    } else {
+      eyelidsTiredHeightNext = 0;
+    }
+    if (angry) {
+      eyelidsAngryHeightNext = eyeLheightCurrent / 2;
+      eyelidsTiredHeightNext = 0;
+    } else {
+      eyelidsAngryHeightNext = 0;
+    }
+    if (happy) {
+      eyelidsHappyBottomOffsetNext = eyeLheightCurrent / 2;
+    } else {
+      eyelidsHappyBottomOffsetNext = 0;
+    }
+
+    eyelidsTiredHeight = (eyelidsTiredHeight + eyelidsTiredHeightNext) / 2;
+    if (!cyclops) {
+      display->fillTriangle(eyeLx, eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy - 1, eyeLx, eyeLy + eyelidsTiredHeight - 1, bgColor);
+      display->fillTriangle(eyeRx, eyeRy - 1, eyeRx + eyeRwidthCurrent, eyeRy - 1, eyeRx + eyeRwidthCurrent, eyeRy + eyelidsTiredHeight - 1, bgColor);
+    } else {
+      display->fillTriangle(eyeLx, eyeLy - 1, eyeLx + (eyeLwidthCurrent / 2), eyeLy - 1, eyeLx, eyeLy + eyelidsTiredHeight - 1, bgColor);
+      display->fillTriangle(eyeLx + (eyeLwidthCurrent / 2), eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy + eyelidsTiredHeight - 1, bgColor);
+    }
+
+    eyelidsAngryHeight = (eyelidsAngryHeight + eyelidsAngryHeightNext) / 2;
+    if (!cyclops) {
+      display->fillTriangle(eyeLx, eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy + eyelidsAngryHeight - 1, bgColor);
+      display->fillTriangle(eyeRx, eyeRy - 1, eyeRx + eyeRwidthCurrent, eyeRy - 1, eyeRx, eyeRy + eyelidsAngryHeight - 1, bgColor);
+    } else {
+      display->fillTriangle(eyeLx, eyeLy - 1, eyeLx + (eyeLwidthCurrent / 2), eyeLy - 1, eyeLx + (eyeLwidthCurrent / 2), eyeLy + eyelidsAngryHeight - 1, bgColor);
+      display->fillTriangle(eyeLx + (eyeLwidthCurrent / 2), eyeLy - 1, eyeLx + eyeLwidthCurrent, eyeLy - 1, eyeLx + (eyeLwidthCurrent / 2), eyeLy + eyelidsAngryHeight - 1, bgColor);
+    }
+
+    eyelidsHappyBottomOffset = (eyelidsHappyBottomOffset + eyelidsHappyBottomOffsetNext) / 2;
+    display->fillRoundRect(eyeLx - 1, (eyeLy + eyeLheightCurrent) - eyelidsHappyBottomOffset + 1, eyeLwidthCurrent + 2, eyeLheightDefault, eyeLborderRadiusCurrent, bgColor);
+    if (!cyclops) {
+      display->fillRoundRect(eyeRx - 1, (eyeRy + eyeRheightCurrent) - eyelidsHappyBottomOffset + 1, eyeRwidthCurrent + 2, eyeRheightDefault, eyeRborderRadiusCurrent, bgColor);
+    }
+  }
+};
+
+#endif
