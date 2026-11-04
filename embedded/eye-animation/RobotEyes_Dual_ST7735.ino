@@ -28,8 +28,8 @@
 const int SCREEN_W = 160;
 const int SCREEN_H = 128;
 const int EYE_W = 90;
-const int EYE_H = 90;
-const int EYE_R = 45;
+const int EYE_H = 110;
+const int EYE_R = 26;
 
 Adafruit_ST7735 tftL(PIN_CS_L, PIN_DC, -1);
 Adafruit_ST7735 tftR(PIN_CS_R, PIN_DC, -1);
