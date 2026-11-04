@@ -6,6 +6,8 @@
  * Copyright (C) 2024-2025 Dennis Hoelscher, FluxGarage
  * TFT adaptation: Tejas Elderly Care Robot - eye animation module
  *
+ * WORKING VERSION - verified on ESP8266 + two ST7735 displays.
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or

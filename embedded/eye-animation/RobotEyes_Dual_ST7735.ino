@@ -2,6 +2,8 @@
  * Tejas Elderly Care Robot - Dual Eye Animation
  * ESP8266 + two 1.8" ST7735 TFT displays (160x128 landscape)
  *
+ * WORKING VERSION - verified on ESP8266 + two ST7735 displays.
+ *
  * Wiring:
  *   SCK  -> D5 / GPIO14  (both displays)
  *   MOSI -> D7 / GPIO13  (both displays)
